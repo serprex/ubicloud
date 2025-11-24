@@ -10,7 +10,14 @@ if (suite = ENV.delete("COVERAGE"))
 
     command_name "#{suite}#{ENV["TEST_ENV_NUMBER"]}"
 
-    if suite == "rhizome"
+    # Support filtering to specific files via COVERAGE_FILES env var
+    # Usage: COVERAGE=1 COVERAGE_FILES="prog/postgres/file1.rb,lib/file2.rb" bundle exec rspec
+    if (coverage_files = ENV["COVERAGE_FILES"])
+      target_files = coverage_files.split(",").map(&:strip)
+      add_filter do |file|
+        !target_files.any? { |f| file.filename.include?(f) }
+      end
+    elsif suite == "rhizome"
       require "pathname"
       LOCKED_FILES = ["rhizome/kubernetes/lib/ubi_cni.rb"].map do |file|
         Pathname.new(File.expand_path("..", __dir__)).join(file).to_s
