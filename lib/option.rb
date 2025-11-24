@@ -132,7 +132,7 @@ module Option
     [PostgresResource::Flavor::LANTERN, "lantern", "Lantern PostgreSQL Database", "Lantern is a PostgreSQL-based vector database designed specifically for building AI applications. Lantern instances are managed by the Lantern team and are optimal for AI workloads."]
   ].to_h { |args| [args[0], PostgresFlavorOption.new(*args)] }.freeze
 
-  PostgresFamilyOption = Data.define(:name, :description)
+  PostgresFamilyOption = Data.define(:name, :description, :category)
   POSTGRES_FAMILY_OPTIONS = [
     ["standard", "Dedicated CPU"],
     ["burstable", "Shared CPU"],
