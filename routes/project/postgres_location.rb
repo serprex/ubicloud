@@ -10,10 +10,15 @@ class Clover
 
   def filter_with_availability(postgres_locations, accept_missing_provider_availability: false)
     postgres_locations.filter_map do |pg_location|
-      location_name = pg_location.location.name
+      location = pg_location.location
+
+      # Only apply AWS availability filtering to AWS locations
+      unless location.provider == "aws"
+        next pg_location
+      end
 
       # Get available families for this location from the instance availability data
-      available_data = OptionTreeFilter.filter(provider: "aws", location: location_name)
+      available_data = OptionTreeFilter.filter(provider: "aws", location: location.name)
 
       # Handle missing provider availability
       if available_data.empty?
