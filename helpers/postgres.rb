@@ -162,8 +162,8 @@ class Clover
     locations = Location.visible_or_for_project(@project.id, @project.feature_flags["visible_locations"])
     locations.map do |location|
       PostgresLocation.new(
-        location: location,
-        available_postgres_versions: Option::POSTGRES_VERSION_OPTIONS[PostgresResource::Flavor::STANDARD],
+        location:,
+        available_postgres_versions: Option::POSTGRES_VERSION_OPTIONS[::PostgresResource::Flavor::STANDARD],
         available_vm_families: vm_families_for_location(location)
       )
     end
@@ -171,7 +171,7 @@ class Clover
 
   def vm_families_for_location(location)
     # Generate option tree for this location
-    option_tree, parents = generate_postgres_options(flavor: PostgresResource::Flavor::STANDARD, location: location)
+    option_tree, parents = generate_postgres_options(flavor: ::PostgresResource::Flavor::STANDARD, location:)
 
     # Extract all valid family+size+storage combinations for this location
     allowed_options = OptionTreeGenerator.generate_allowed_options("storage_size", option_tree, parents)
@@ -196,7 +196,7 @@ class Clover
         name: family_name,
         display_name: family_option.description,
         category: family_option.category,
-        sizes: sizes
+        sizes:
       }
     end
   end
