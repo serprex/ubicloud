@@ -134,19 +134,19 @@ module Option
 
   PostgresFamilyOption = Data.define(:name, :description, :category)
   POSTGRES_FAMILY_OPTIONS = [
-    ["standard", "Dedicated CPU"],
-    ["burstable", "Shared CPU"],
-    ["m8gd", "General Purpose, Graviton3"],
-    ["i8g", "Storage Optimized, Graviton4"],
-    ["i8ge", "Storage Optimized, Graviton4"],
-    ["i7i", "Storage Optimized, Intel Xeon"],
-    ["i7ie", "Storage Optimized, Intel Xeon"],
-    ["r8gd", "Memory Optimized, Graviton4"],
-    ["r6gd", "Memory Optimized, Graviton2"],
-    ["r6id", "Memory Optimized, Intel Xeon"],
-    ["c6gd", "Compute Optimized, Graviton2"],
-    ["m6id", "General Purpose, Intel Xeon"],
-    ["m6gd", "General Purpose, Graviton2"]
+    ["standard", "Dedicated CPU", "dedicated"],
+    ["burstable", "Shared CPU", "shared"],
+    ["m8gd", "General Purpose, Graviton3", "general-purpose"],
+    ["i8g", "Storage Optimized, Graviton4", "storage-optimized"],
+    ["i8ge", "Storage Optimized, Graviton4", "storage-optimized"],
+    ["i7i", "Storage Optimized, Intel Xeon", "storage-optimized"],
+    ["i7ie", "Storage Optimized, Intel Xeon", "storage-optimized"],
+    ["r8gd", "Memory Optimized, Graviton4", "memory-optimized"],
+    ["r6gd", "Memory Optimized, Graviton2", "memory-optimized"],
+    ["r6id", "Memory Optimized, Intel Xeon", "memory-optimized"],
+    ["c6gd", "Compute Optimized, Graviton2", "compute-optimized"],
+    ["m6id", "General Purpose, Intel Xeon", "general-purpose"],
+    ["m6gd", "General Purpose, Graviton2", "general-purpose"]
   ].to_h { |args| [args[0], PostgresFamilyOption.new(*args)] }.freeze
 
   PostgresSizeOption = Data.define(:name, :family, :vcpu_count, :memory_gib)
