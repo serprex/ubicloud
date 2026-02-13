@@ -33,7 +33,9 @@ class Clover
     requested_standby_count = Option::POSTGRES_HA_OPTIONS[postgres_params["ha_type"]].standby_count
     requested_postgres_vcpu_count = (requested_standby_count + 1) * parsed_size.vcpu_count
     Validation.validate_vcpu_quota(@project, "PostgresVCpu", requested_postgres_vcpu_count)
-
+    if version == "16"
+      user_config.delete("sync_replication_slots")
+    end
     validate_postgres_config(version, user_config, pgbouncer_user_config)
 
     pg = nil
