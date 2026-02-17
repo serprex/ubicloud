@@ -57,6 +57,7 @@ class PostgresServer < Sequel::Model
       "ssl_key_file" => "'/etc/ssl/certs/server.key'",
       "log_timezone" => "'UTC'",
       "log_directory" => "'pg_log'",
+      "log_destination" => "'stderr, jsonlog'",
       "log_filename" => "'postgresql.log'",
       "log_truncate_on_rotation" => "true",
       "logging_collector" => "on",
