@@ -313,6 +313,34 @@ WantedBy=timers.target
 TIMER
     vm.sshable.write_file("/etc/systemd/system/postgres-metrics.timer", metrics_timer)
 
+    pg_metrics_service = <<SERVICE
+[Unit]
+Description=PostgreSQL Custom Metrics Collection
+After=postgresql.service
+
+[Service]
+Type=oneshot
+User=ubi
+ExecStart=/home/ubi/postgres/bin/collect-pg-metrics #{postgres_server.version}
+StandardOutput=journal
+StandardError=journal
+SERVICE
+    vm.sshable.write_file("/etc/systemd/system/pg-collect-metrics.service", pg_metrics_service)
+
+    pg_metrics_timer = <<TIMER
+[Unit]
+Description=Run PostgreSQL Custom Metrics Collection Periodically
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=30s
+AccuracySec=1s
+
+[Install]
+WantedBy=timers.target
+TIMER
+    vm.sshable.write_file("/etc/systemd/system/pg-collect-metrics.timer", pg_metrics_timer)
+
     vm.sshable.cmd("sudo systemctl daemon-reload")
 
     when_initial_provisioning_set? do
@@ -320,6 +348,7 @@ TIMER
       vm.sshable.cmd("sudo systemctl enable --now node_exporter")
       vm.sshable.cmd("sudo systemctl enable --now prometheus")
       vm.sshable.cmd("sudo systemctl enable --now postgres-metrics.timer")
+      vm.sshable.cmd("sudo systemctl enable --now pg-collect-metrics.timer")
       vm.sshable.cmd("sudo systemctl enable --now wal-g") if postgres_server.timeline.blob_storage && !postgres_server.resource.use_old_walg_command_set?
 
       hop_setup_cloudwatch if postgres_server.timeline.aws? && postgres_server.resource.project.get_ff_aws_cloudwatch_logs
@@ -579,7 +608,7 @@ SQL
         nap 15 * 60
       end
 
-      if postgres_server.lsn_diff(lsn, previous_lsn) > 0
+      if PostgresServer.lsn_diff(lsn, previous_lsn) > 0
         update_stack_lsn(lsn)
         # Even if it is lagging, it has applied new wal files, so, we should
         # give it a chance to catch up

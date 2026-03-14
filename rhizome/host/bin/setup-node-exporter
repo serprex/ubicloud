@@ -17,6 +17,8 @@ r "tar xvfz #{file_name}.tar.gz"
 r "sudo mv #{file_name}/node_exporter /usr/local/bin/"
 r "sudo rm -rf #{file_name}*"
 
+r "sudo mkdir -p /var/lib/node_exporter"
+
 safe_write_to_file("/etc/systemd/system/node_exporter.service", <<NODEEXPORTERCONFIG)
 [Unit]
 Description=Prometheus Node Exporter
@@ -27,6 +29,7 @@ After=network-online.target
 NoNewPrivileges=yes
 PrivateTmp=yes
 ProtectSystem=strict
+ReadWritePaths=/var/lib/node_exporter
 ProtectHome=read-only
 ProtectKernelModules=yes
 ProtectKernelTunables=yes
@@ -35,7 +38,7 @@ RestrictSUIDSGID=yes
 MemoryDenyWriteExecute=yes
 LockPersonality=yes
 Type=simple
-ExecStart=/usr/local/bin/node_exporter --web.listen-address=127.0.0.1:9100
+ExecStart=/usr/local/bin/node_exporter --web.listen-address=127.0.0.1:9100 --collector.textfile.directory=/var/lib/node_exporter
 Restart=always
 User=nobody
 Group=nogroup

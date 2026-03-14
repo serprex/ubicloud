@@ -1,0 +1,89 @@
+<%# locals: (obj: nil) %>
+
+<%
+format_bytes = lambda do |bytes|
+  if bytes < 1024
+    "#{bytes.round} B"
+  elsif bytes < 1024**2
+    "#{(bytes / 1024.0).round(1)} KiB"
+  elsif bytes < 1024**3
+    "#{(bytes / 1024.0**2).round(1)} MiB"
+  else
+    "#{(bytes / 1024.0**3).round(1)} GiB"
+  end
+end
+
+svg_chart = lambda do |points, formatter: nil|
+  next "<em>No data available</em>" if points.empty?
+
+  w, h = 600, 200
+  pad = {top: 10, right: 10, bottom: 30, left: 70}
+  cw = w - pad[:left] - pad[:right]
+  ch = h - pad[:top] - pad[:bottom]
+
+  min_t = points.first[0]
+  max_t = points.last[0]
+  span_t = [max_t - min_t, 1].max
+
+  max_v = [points.map { it[1] }.max, Float::MIN].max * 1.1
+
+  sx = ->(t) { pad[:left] + (t - min_t).to_f / span_t * cw }
+  sy = ->(v) { pad[:top] + ch - v.to_f / max_v * ch }
+
+  path_d = points.each_with_index.map { |p, i| "#{i == 0 ? "M" : "L"}#{sx.(p[0]).round(1)},#{sy.(p[1]).round(1)}" }.join
+  area_d = "#{path_d}L#{sx.(points.last[0]).round(1)},#{pad[:top] + ch}L#{sx.(points.first[0]).round(1)},#{pad[:top] + ch}Z"
+
+  svg = +""
+  svg << %(<svg xmlns="http://www.w3.org/2000/svg" width="#{w}" height="#{h}" style="font:11px monospace">)
+
+  5.times do |i|
+    v = max_v / 4 * i
+    y = sy.(v).round(1)
+    label = formatter ? formatter.(v) : v.round(1).to_s
+    svg << %(<line x1="#{pad[:left]}" y1="#{y}" x2="#{w - pad[:right]}" y2="#{y}" stroke="#e0e0e0"/>)
+    svg << %(<text x="#{pad[:left] - 4}" y="#{y + 3}" text-anchor="end" fill="#666">#{label}</text>)
+  end
+
+  5.times do |i|
+    t = min_t + span_t / 4.0 * i
+    x = sx.(t).round(1)
+    label = Time.at(t).utc.strftime("%H:%M")
+    svg << %(<text x="#{x}" y="#{h - 4}" text-anchor="middle" fill="#666">#{label}</text>)
+  end
+
+  svg << %(<path d="#{area_d}" fill="rgba(70,130,180,0.15)"/>)
+  svg << %(<path d="#{path_d}" fill="none" stroke="steelblue" stroke-width="1.5"/>)
+  svg << %(</svg>)
+  svg
+end
+
+query_metric = lambda do |tsdb_client, metric_key, server_ubid, resource_ubid|
+  next [] unless tsdb_client
+  metric = Metrics::POSTGRES_METRICS[metric_key]
+  next [] unless metric
+
+  query = metric.series[0].query.gsub("$server_id", server_ubid).gsub("$ubicloud_resource_id", resource_ubid)
+  start_ts = Time.now.to_i - 6 * 3600
+  end_ts = Time.now.to_i
+  result = tsdb_client.query_range(query:, start_ts:, end_ts:)
+  next [] if result.empty?
+  result[0]["values"].map { |v| [v[0].to_f, v[1].to_f] }
+rescue
+  []
+end
+
+tsdb_client = PostgresServer.victoria_metrics_client
+backlog_points = query_metric.(tsdb_client, :archival_backlog, obj.ubid, obj.resource.ubid)
+lag_points = query_metric.(tsdb_client, :wal_lag, obj.ubid, obj.resource.ubid)
+%>
+
+<div style="display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 16px;">
+  <div style="flex: 1; min-width: 400px;">
+    <h3>Archival Backlog</h3>
+    <%== svg_chart.(backlog_points) %>
+  </div>
+  <div style="flex: 1; min-width: 400px;">
+    <h3>WAL Lag</h3>
+    <%== svg_chart.(lag_points, formatter: format_bytes) %>
+  </div>
+</div>

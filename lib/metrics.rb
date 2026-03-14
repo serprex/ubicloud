@@ -188,6 +188,30 @@ module Metrics
           query: "sum(rate(pg_stat_database_xact_rollback{ubicloud_resource_id=\"$ubicloud_resource_id\", ubicloud_resource_role=\"primary\"}[1m]))"
         )
       ]
+    ),
+    archival_backlog:
+    MetricDefinition.new(
+      name: "Archival Backlog",
+      description: "Number of WAL files pending archival",
+      unit: "count",
+      series: [
+        TimeSeries.new(
+          labels: {name: "Pending WAL files"},
+          query: "ubicloud_pg_archival_backlog{ubicloud_resource_id=\"$ubicloud_resource_id\", instance=\"$server_id\"}"
+        )
+      ]
+    ),
+    wal_lag:
+    MetricDefinition.new(
+      name: "WAL Lag",
+      description: "WAL replication lag from primary",
+      unit: "bytes",
+      series: [
+        TimeSeries.new(
+          labels: {name: "Lag"},
+          query: "max(ubicloud_pg_wal_lsn_bytes{ubicloud_resource_id=\"$ubicloud_resource_id\"}) - ubicloud_pg_wal_lsn_bytes{ubicloud_resource_id=\"$ubicloud_resource_id\", instance=\"$server_id\"}"
+        )
+      ]
     )
   }
 end

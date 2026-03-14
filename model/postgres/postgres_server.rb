@@ -187,14 +187,24 @@ class PostgresServer < Sequel::Model
     recycle_set? || vm.display_size.gsub("burstable", "hobby") != resource.target_vm_size || storage_size_gib != resource.target_storage_size_gib || version != resource.target_version
   end
 
-  def lsn_caught_up
+  def pg_last_xact_replay_timestamp
+    run_query("select pg_last_xact_replay_timestamp()")
+  end
+
+  def lsn_lag(lsn = nil)
     parent_server = if read_replica?
       resource.parent&.representative_server
     else
       resource.representative_server
     end
 
-    !parent_server || lsn_diff(parent_server.current_lsn, current_lsn) < 80 * 1024 * 1024
+    return nil unless parent_server
+    PostgresServer.lsn_diff(parent_server.current_lsn, lsn || current_lsn)
+  end
+
+  def lsn_caught_up
+    lag = lsn_lag
+    lag.nil? || lag < 80 * 1024 * 1024
   end
 
   def current_lsn
@@ -210,13 +220,13 @@ class PostgresServer < Sequel::Model
       .reject { it.is_representative }
       .select { it.strand.label == "wait" && !it.needs_recycling? }
       .map { {server: it, lsn: it.current_lsn} }
-      .max_by { [it[:server].physical_slot_ready ? 1 : 0, lsn2int(it[:lsn])] } # prefers physical slot ready servers
+      .max_by { [it[:server].physical_slot_ready ? 1 : 0, PostgresServer.lsn2int(it[:lsn])] } # prefers physical slot ready servers
 
     return nil if target.nil?
 
     if resource.ha_type == PostgresResource::HaType::ASYNC
       return unless (last_known_lsn = lsn_monitor_ds.get(:last_known_lsn))
-      return if lsn_diff(last_known_lsn, target[:lsn]) > 80 * 1024 * 1024 # 80 MB or ~5 WAL files
+      return if PostgresServer.lsn_diff(last_known_lsn, target[:lsn]) > 80 * 1024 * 1024 # 80 MB or ~5 WAL files
     end
 
     target[:server]
@@ -292,12 +302,12 @@ class PostgresServer < Sequel::Model
     @health_monitor_socket_path ||= File.join(Dir.pwd, "var", "health_monitor_sockets", "pg_#{vm.ip6}")
   end
 
-  def lsn2int(lsn)
+  def self.lsn2int(lsn)
     lsn.split("/").map { it.rjust(8, "0") }.join.hex
   end
 
-  def lsn_diff(lsn1, lsn2)
-    lsn2int(lsn1) - lsn2int(lsn2)
+  def self.lsn_diff(lsn1, lsn2)
+    PostgresServer.lsn2int(lsn1) - PostgresServer.lsn2int(lsn2)
   end
 
   def run_query(query)
@@ -427,7 +437,7 @@ class PostgresServer < Sequel::Model
     return true if archival_backlog > archival_backlog_threshold * 2
     return true unless previous_oldest_pending_wal && current_oldest_pending_wal && previous_time
 
-    bytes_archived = lsn_diff(wal2lsn(current_oldest_pending_wal), wal2lsn(previous_oldest_pending_wal))
+    bytes_archived = PostgresServer.lsn_diff(wal2lsn(current_oldest_pending_wal), wal2lsn(previous_oldest_pending_wal))
     elapsed_seconds = now - previous_time
     return true if elapsed_seconds <= 0
 

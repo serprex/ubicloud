@@ -772,6 +772,7 @@ RSpec.describe PostgresServer do
     end
   end
 
+
   describe "#archival_backlog_threshold" do
     it "returns 1000 if the storage size is large" do
       allow(postgres_server).to receive(:storage_size_gib).and_return(1024)
@@ -1044,4 +1045,12 @@ RSpec.describe PostgresServer do
       expect { postgres_server.run_query("interpolated #{string}") }.to raise_error(NetSsh::PotentialInsecurity)
     end
   end
+
+  describe "#pg_last_xact_replay_timestamp" do
+    it "gets value from postgres server" do
+      expect(postgres_server).to receive(:_run_query).with("select pg_last_xact_replay_timestamp()").and_return(:result)
+      expect(postgres_server.pg_last_xact_replay_timestamp).to eq(:result)
+    end
+  end
+
 end
