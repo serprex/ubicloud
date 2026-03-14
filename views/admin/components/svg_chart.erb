@@ -1,0 +1,37 @@
+<%# locals: (points:, formatter: nil) %>
+
+<% if points.empty? %>
+  <em>No data available</em>
+<% else %>
+  <%
+  w, h = 600, 200
+  pad = {top: 10, right: 10, bottom: 30, left: 70}
+  cw = w - pad[:left] - pad[:right]
+  ch = h - pad[:top] - pad[:bottom]
+
+  min_t = points.first[0]
+  max_t = points.last[0]
+  span_t = [max_t - min_t, 1].max
+
+  max_v = [points.map { it[1] }.max, Float::MIN].max * 1.1
+
+  sx = ->(t) { pad[:left] + (t - min_t).to_f / span_t * cw }
+  sy = ->(v) { pad[:top] + ch - v.to_f / max_v * ch }
+
+  path_d = points.each_with_index.map { |p, i| "#{i == 0 ? "M" : "L"}#{sx.(p[0]).round(1)},#{sy.(p[1]).round(1)}" }.join
+  area_d = "#{path_d}L#{sx.(points.last[0]).round(1)},#{pad[:top] + ch}L#{sx.(points.first[0]).round(1)},#{pad[:top] + ch}Z"
+  %>
+  <svg xmlns="http://www.w3.org/2000/svg" width="<%= w %>" height="<%= h %>" style="font:11px monospace">
+    <% 5.times do |i| %>
+      <% v = max_v / 4 * i; y = sy.(v).round(1) %>
+      <line x1="<%= pad[:left] %>" y1="<%= y %>" x2="<%= w - pad[:right] %>" y2="<%= y %>" stroke="#e0e0e0"/>
+      <text x="<%= pad[:left] - 4 %>" y="<%= y + 3 %>" text-anchor="end" fill="#666"><%= formatter ? formatter.(v) : v.round(1) %></text>
+    <% end %>
+    <% 5.times do |i| %>
+      <% t = min_t + span_t / 4.0 * i; x = sx.(t).round(1) %>
+      <text x="<%= x %>" y="<%= h - 4 %>" text-anchor="middle" fill="#666"><%= Time.at(t).utc.strftime("%H:%M") %></text>
+    <% end %>
+    <path d="<%= area_d %>" fill="rgba(70,130,180,0.15)"/>
+    <path d="<%= path_d %>" fill="none" stroke="steelblue" stroke-width="1.5"/>
+  </svg>
+<% end %>
