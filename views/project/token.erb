@@ -12,7 +12,7 @@
 <div class="grid gap-6">
   <div class="md:flex md:items-center md:justify-between pb-1 lg:pb-2">
     <div class="min-w-0 flex-1">
-      Personal access tokens are both account-specific and project-specific. You can use a separate access control
+      Personal access tokens are both account-specific and project-specific. You can use separate access control
       entries for each token, but be aware that regardless of the access permissions of the token, requests made using
       the token cannot exceed the access permissions of your account.
     </div>
@@ -48,4 +48,52 @@
         ]
       end
   ) %>
+
+  <div class="mt-8">
+    <h2 class="text-base font-semibold leading-7 text-gray-900">Trusted JWT Issuers</h2>
+    <p class="mt-1 text-sm leading-6 text-gray-600">
+      JSON web tokens with keys published at a JWKS URI. You can use separate access control entries for each token,
+      but be aware that regardless of the access permissions of the token, requests made using the token cannot exceed
+      the access permissions of your account.
+    </p>
+  </div>
+
+  <%== part(
+    "components/table_card",
+    headers: ["Name", "Issuer", "JWKS URI", ""],
+    empty_state: {
+      icon: "hero-key",
+      title: "No trusted JWT issuers",
+      description: "Add a trusted issuer to enable JWT-based authentication."
+    },
+    rows:
+      @jwt_issuers.map do |ji|
+        [
+          [
+            ji.name,
+            ji.issuer,
+            ji.jwks_uri,
+            [
+              "delete_button",
+              {
+                component: {
+                  text: "Remove",
+                  url: "#{@project.path}/token/jwt-issuer/#{ji.ubid}",
+                  confirmation: "delete JWT issuer"
+                },
+                extra_class: "flex justify-end"
+              }
+            ]
+          ],
+          { id: "jwt-issuer-#{ji.ubid}" }
+        ]
+      end
+  ) %>
+
+  <% form({action: "#{@project.path}/token/jwt-issuer", method: :post, id: "create-jwt-issuer"}, wrapper: :div) do |f| %>
+    <%== f.input(:text, key: "name", label: "Name", attributes: {required: true, placeholder: "e.g. control-plane"}) %>
+    <%== f.input(:text, key: "issuer", label: "Issuer (iss claim)", attributes: {required: true, placeholder: "e.g. https://auth.example.com"}) %>
+    <%== f.input(:text, key: "jwks_uri", label: "JWKS URI", attributes: {required: true, placeholder: "e.g. https://auth.example.com/.well-known/jwks.json"}) %>
+    <%== f.button("Add Trusted Issuer") %>
+  <% end %>
 </div>

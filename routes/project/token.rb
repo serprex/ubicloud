@@ -12,6 +12,7 @@ class Clover
       r.is do
         r.get do
           @tokens = token_ds.all
+          @jwt_issuers = @project.trusted_jwt_issuers
           view "project/token"
         end
 
@@ -24,6 +25,48 @@ class Clover
             rodauth.add_audit_log(current_account_id, :create_token, {"token" => pat.ubid})
           end
           flash["notice"] = "Created personal access token with id #{pat.ubid}"
+          r.redirect @project, "/token"
+        end
+      end
+
+      r.on "jwt-issuer" do
+        r.is do
+          r.post do
+            @tokens = token_ds.all
+            @jwt_issuers = @project.trusted_jwt_issuers
+            handle_validation_failure("project/token")
+
+            name = typecast_body_params.nonempty_str!("name")
+            issuer = typecast_body_params.nonempty_str!("issuer")
+            jwks_uri = typecast_body_params.nonempty_str!("jwks_uri")
+
+            jwt_issuer = nil
+            DB.transaction do
+              jwt_issuer = TrustedJwtIssuer.create(
+                project_id: @project.id,
+                account_id: current_account_id,
+                name:,
+                issuer:,
+                jwks_uri:
+              )
+              audit_log(jwt_issuer, "create")
+            end
+
+            flash["notice"] = "Trusted JWT issuer created"
+            r.redirect @project, "/token"
+          end
+        end
+
+        r.delete :ubid_uuid do |uuid|
+          jwt_issuer = @project.trusted_jwt_issuers_dataset.with_pk(uuid)
+          check_found_object(jwt_issuer)
+
+          DB.transaction do
+            jwt_issuer.destroy
+            audit_log(jwt_issuer, "destroy")
+          end
+
+          flash["notice"] = "Trusted JWT issuer deleted"
           r.redirect @project, "/token"
         end
       end

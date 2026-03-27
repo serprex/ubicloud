@@ -215,4 +215,35 @@ RSpec.describe Clover, "personal access token management" do
     expect(ace).not_to be_exists
     expect(page.title).to eq "Ubicloud - Default - Token #{@api_key.ubid}"
   end
+
+  it "can create a trusted JWT issuer" do
+    visit "#{project.path}/token"
+    fill_in "name", with: "test-issuer"
+    fill_in "issuer", with: "https://auth.example.com"
+    fill_in "jwks_uri", with: "https://auth.example.com/.well-known/jwks.json"
+    click_button "Add Trusted Issuer"
+
+    expect(find_by_id("flash-notice").text).to eq "Trusted JWT issuer created"
+    expect(TrustedJwtIssuer.count).to eq(1)
+    ji = TrustedJwtIssuer.first
+    expect(ji.name).to eq("test-issuer")
+    expect(ji.issuer).to eq("https://auth.example.com")
+    expect(ji.account_id).to eq(user.id)
+  end
+
+  it "can delete a trusted JWT issuer" do
+    ji = TrustedJwtIssuer.create(
+      project_id: project.id,
+      account_id: user.id,
+      name: "to-delete",
+      issuer: "https://delete.example.com",
+      jwks_uri: "https://delete.example.com/.well-known/jwks.json"
+    )
+
+    visit "#{project.path}/token"
+    within("#jwt-issuer-#{ji.ubid}") { click_button "Remove" }
+
+    expect(find_by_id("flash-notice").text).to eq "Trusted JWT issuer deleted"
+    expect(TrustedJwtIssuer.count).to eq(0)
+  end
 end

@@ -4,10 +4,8 @@ require "excon"
 require_relative "../model"
 
 class TrustedJwtIssuer < Sequel::Model
-  many_to_one :project, read_only: true
-  many_to_one :account, read_only: true
-
   plugin ResourceMethods
+  include SubjectTag::Cleanup
 
   def decode_jwt(token)
     JWT.decode(token, nil, true, algorithms: ["RS256"], iss: issuer, verify_iss: true, jwks: jwks_loader)[0]

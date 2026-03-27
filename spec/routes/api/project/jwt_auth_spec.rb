@@ -124,4 +124,40 @@ RSpec.describe Clover, "jwt auth" do
 
     expect(last_response).to have_api_error(401)
   end
+
+  it "uses issuer ID as authorization subject with AND semantics" do
+    # Account has Admin (wildcard), issuer has scoped ACE.
+    # AND semantics: result is intersection = issuer's scope.
+    pg1 = Prog::Postgres::PostgresResourceNexus.assemble(
+      project_id: project.id,
+      location_id: Location::HETZNER_FSN1_ID,
+      name: "pg-visible",
+      target_vm_size: "standard-2",
+      target_storage_size_gib: 128
+    ).subject
+
+    Prog::Postgres::PostgresResourceNexus.assemble(
+      project_id: project.id,
+      location_id: Location::HETZNER_FSN1_ID,
+      name: "pg-hidden",
+      target_vm_size: "standard-2",
+      target_storage_size_gib: 128
+    )
+
+    # Issuer only has access to pg1
+    AccessControlEntry.create(
+      project_id: project.id,
+      subject_id: issuer_config.id,
+      action_id: ActionType::NAME_MAP.fetch("Postgres:view"),
+      object_id: pg1.id
+    )
+
+    header "Authorization", "Bearer #{mint_jwt}"
+    get "/project/#{project.ubid}/postgres"
+
+    expect(last_response.status).to eq(200)
+    items = JSON.parse(last_response.body)["items"]
+    expect(items.length).to eq(1)
+    expect(items[0]["name"]).to eq("pg-visible")
+  end
 end

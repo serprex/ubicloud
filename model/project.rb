@@ -23,6 +23,7 @@ class Project < Sequel::Model
   one_to_many :inference_endpoints, read_only: true
   one_to_many :kubernetes_clusters, read_only: true
   one_to_many :ssh_public_keys, order: :name, remover: nil, clearer: nil
+  one_to_many :trusted_jwt_issuers, read_only: true
 
   RESOURCE_ASSOCIATIONS = %i[vms minio_clusters private_subnets postgres_resources firewalls load_balancers kubernetes_clusters github_runners]
   RESOURCE_ASSOCIATION_DATASET_METHODS = RESOURCE_ASSOCIATIONS.map { :"#{it}_dataset" }
