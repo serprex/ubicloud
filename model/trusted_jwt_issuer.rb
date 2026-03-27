@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "excon"
 require_relative "../model"
 
 class TrustedJwtIssuer < Sequel::Model
@@ -8,8 +9,17 @@ class TrustedJwtIssuer < Sequel::Model
 
   plugin ResourceMethods
 
-  def parsed_public_key
-    OpenSSL::PKey.read(public_key)
+  def decode_jwt(token)
+    JWT.decode(token, nil, true, algorithms: ["RS256"], iss: issuer, verify_iss: true, jwks: jwks_loader)[0]
+  end
+
+  private
+
+  def jwks_loader
+    lambda do |options|
+      @jwks = nil if options[:invalidate]
+      @jwks ||= JSON.parse(Excon.get(jwks_uri, expects: [200]).body)
+    end
   end
 end
 
@@ -20,7 +30,7 @@ end
 #  account_id | uuid | NOT NULL
 #  name       | text | NOT NULL
 #  issuer     | text | NOT NULL
-#  public_key | text | NOT NULL
+#  jwks_uri   | text | NOT NULL
 # Indexes:
 #  trusted_jwt_issuer_pkey                      | PRIMARY KEY btree (id)
 #  trusted_jwt_issuer_project_id_issuer_index   | UNIQUE btree (project_id, issuer)
