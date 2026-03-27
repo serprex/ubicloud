@@ -2,8 +2,82 @@
 
 class Clover
   hash_branch(:project_prefix, "token") do |r|
+    authorize("Project:token", @project)
+
+    r.on "jwt-issuer" do
+      r.is do
+        r.get do
+          if api?
+            {items: Serializers::TrustedJwtIssuer.serialize(@project.trusted_jwt_issuers)}
+          else
+            response.status = 404
+            request.halt
+          end
+        end
+
+        r.post do
+          if web?
+            token_ds = current_account.api_keys_dataset.where(project_id: @project.id).reverse(:created_at)
+            @tokens = token_ds.all
+            @jwt_issuers = @project.trusted_jwt_issuers
+            handle_validation_failure("project/token")
+          end
+
+          name = typecast_body_params.nonempty_str!("name")
+          issuer = typecast_body_params.nonempty_str!("issuer")
+          jwks_uri = typecast_body_params.nonempty_str!("jwks_uri")
+
+          jwt_issuer = nil
+          DB.transaction do
+            jwt_issuer = TrustedJwtIssuer.create(
+              project_id: @project.id,
+              account_id: current_account_id,
+              name:,
+              issuer:,
+              jwks_uri:
+            )
+            audit_log(jwt_issuer, "create")
+          end
+
+          if api?
+            Serializers::TrustedJwtIssuer.serialize(jwt_issuer)
+          else
+            flash["notice"] = "Trusted JWT issuer created"
+            r.redirect @project, "/token"
+          end
+        end
+      end
+
+      r.on :ubid_uuid do |uuid|
+        jwt_issuer = @project.trusted_jwt_issuers_dataset.with_pk(uuid)
+        check_found_object(jwt_issuer)
+
+        r.get true do
+          if api?
+            Serializers::TrustedJwtIssuer.serialize(jwt_issuer)
+          else
+            response.status = 404
+            request.halt
+          end
+        end
+
+        r.delete true do
+          DB.transaction do
+            jwt_issuer.destroy
+            audit_log(jwt_issuer, "destroy")
+          end
+
+          if api?
+            204
+          else
+            flash["notice"] = "Trusted JWT issuer deleted"
+            r.redirect @project, "/token"
+          end
+        end
+      end
+    end
+
     r.web do
-      authorize("Project:token", @project)
       token_ds = current_account
         .api_keys_dataset
         .where(project_id: @project.id)
@@ -24,48 +98,6 @@ class Clover
             audit_log(pat, "create")
           end
           flash["notice"] = "Created personal access token with id #{pat.ubid}"
-          r.redirect @project, "/token"
-        end
-      end
-
-      r.on "jwt-issuer" do
-        r.is do
-          r.post do
-            @tokens = token_ds.all
-            @jwt_issuers = @project.trusted_jwt_issuers
-            handle_validation_failure("project/token")
-
-            name = typecast_body_params.nonempty_str!("name")
-            issuer = typecast_body_params.nonempty_str!("issuer")
-            jwks_uri = typecast_body_params.nonempty_str!("jwks_uri")
-
-            jwt_issuer = nil
-            DB.transaction do
-              jwt_issuer = TrustedJwtIssuer.create(
-                project_id: @project.id,
-                account_id: current_account_id,
-                name:,
-                issuer:,
-                jwks_uri:
-              )
-              audit_log(jwt_issuer, "create")
-            end
-
-            flash["notice"] = "Trusted JWT issuer created"
-            r.redirect @project, "/token"
-          end
-        end
-
-        r.delete :ubid_uuid do |uuid|
-          jwt_issuer = @project.trusted_jwt_issuers_dataset.with_pk(uuid)
-          check_found_object(jwt_issuer)
-
-          DB.transaction do
-            jwt_issuer.destroy
-            audit_log(jwt_issuer, "destroy")
-          end
-
-          flash["notice"] = "Trusted JWT issuer deleted"
           r.redirect @project, "/token"
         end
       end

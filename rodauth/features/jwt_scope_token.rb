@@ -8,7 +8,7 @@ module Rodauth
     session_key :session_jwt_payload_key, :jwt_payload
 
     def session
-      return @session if defined?(@session)
+      return super if defined?(@session)
 
       raw = request.env["HTTP_AUTHORIZATION"].to_s
 
