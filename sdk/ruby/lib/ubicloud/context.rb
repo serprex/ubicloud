@@ -39,6 +39,7 @@ module Ubicloud
       inference_endpoint: InferenceEndpoint,
       kubernetes_cluster: KubernetesCluster,
       ssh_public_key: SshPublicKey,
+      trusted_jwt_issuer: TrustedJwtIssuer,
     }.each do |meth, model|
       define_method(meth) { @models[meth] ||= ModelAdapter.new(model, @adapter) }
     end
@@ -55,6 +56,7 @@ module Ubicloud
       "ak" => InferenceApiKey,
       "kc" => KubernetesCluster,
       "sk" => SshPublicKey,
+      "jw" => TrustedJwtIssuer,
     }.freeze
 
     # Return a new model instance for the given id, assuming the id is properly
