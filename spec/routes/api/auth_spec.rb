@@ -6,7 +6,7 @@ RSpec.describe Clover, "auth" do
   it "invalid authorization header" do
     header "Authorization", "Bearer wrongjwt"
     get "/project"
-    expect(last_response).to have_api_error(401, "must include personal access token in Authorization header")
+    expect(last_response).to have_api_error(401, "invalid personal access token provided in Authorization header")
 
     header "Authorization", "Bearer pat-"
     get "/project"

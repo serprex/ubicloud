@@ -24,8 +24,7 @@ module Rodauth
       return super unless (project_id = UBID.to_uuid(project_ubid))
       return super unless (issuer_config = TrustedJwtIssuer.first(project_id:, issuer: iss))
 
-      key = issuer_config.parsed_public_key
-      payload = JWT.decode(token, key, true, algorithm: "RS256", iss:, verify_iss: true)[0]
+      payload = issuer_config.decode_jwt(token)
 
       @session = s = {}
       set_session_value(session_key, issuer_config.account_id)
