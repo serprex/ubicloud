@@ -964,7 +964,7 @@ class Clover < Roda
 
   route do |r|
     if api?
-      unless /\ABearer:?\s+pat-/i.match?(env["HTTP_AUTHORIZATION"].to_s)
+      unless /\ABearer:?\s+/i.match?(env["HTTP_AUTHORIZATION"].to_s)
         if r.path_info == "/cli"
           response.content_type = :text
           response.status = 400
