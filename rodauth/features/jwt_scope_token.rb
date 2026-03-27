@@ -16,7 +16,6 @@ module Rodauth
       return super if raw.empty? || raw.match?(/\ABearer:?\s+pat-/i)
 
       token = raw.sub(/\ABearer:?\s+/i, "")
-      return super if token == raw
 
       payload = JWT.decode(token, nil, false)[0]
       return super unless (iss = payload["iss"])
