@@ -8,7 +8,7 @@ Sequel.migration do
       foreign_key :account_id, :accounts, type: :uuid, null: false
       column :name, :text, null: false
       column :issuer, :text, null: false
-      column :public_key, :text, null: false
+      column :jwks_uri, :text, null: false
 
       unique [:project_id, :issuer]
     end
