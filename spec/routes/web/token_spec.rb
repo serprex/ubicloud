@@ -246,4 +246,19 @@ RSpec.describe Clover, "personal access token management" do
     expect(find_by_id("flash-notice").text).to eq "Trusted JWT issuer deleted"
     expect(TrustedJwtIssuer.count).to eq(0)
   end
+
+  it "returns 404 for web GET on jwt-issuer endpoints" do
+    visit "#{project.path}/token/jwt-issuer"
+    expect(page.status_code).to eq(404)
+
+    ji = TrustedJwtIssuer.create(
+      project_id: project.id,
+      account_id: user.id,
+      name: "test",
+      issuer: "https://test.example.com",
+      jwks_uri: "https://test.example.com/.well-known/jwks.json"
+    )
+    visit "#{project.path}/token/jwt-issuer/#{ji.ubid}"
+    expect(page.status_code).to eq(404)
+  end
 end
