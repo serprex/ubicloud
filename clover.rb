@@ -321,9 +321,10 @@ class Clover < Roda
   end
 
   require_relative "rodauth/features/personal_access_token"
+  require_relative "rodauth/features/jwt_scope_token"
 
   plugin :rodauth, name: :api do
-    enable :json, :personal_access_token
+    enable :json, :personal_access_token, :jwt_scope_token
 
     only_json? true
 
