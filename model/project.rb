@@ -169,8 +169,26 @@ class Project < Sequel::Model
     end
   end
 
+  def total_resource_usage(resource_type)
+    if Config.root_project_id && id == Config.root_project_id
+      Project.where(visible: true).all.sum { it.current_resource_usage(resource_type) }
+    else
+      current_resource_usage(resource_type)
+    end
+  end
+
   def quota_available?(resource_type, requested_additional_usage)
-    effective_quota_value(resource_type) >= current_resource_usage(resource_type) + requested_additional_usage
+    if Config.root_project_id && id == Config.root_project_id
+      return effective_quota_value(resource_type) >= total_resource_usage(resource_type) + requested_additional_usage
+    end
+
+    return false unless effective_quota_value(resource_type) >= current_resource_usage(resource_type) + requested_additional_usage
+
+    root_id = Config.root_project_id
+    return true unless root_id
+    root = Project[root_id]
+    return true unless root
+    root.effective_quota_value(resource_type) >= root.total_resource_usage(resource_type) + requested_additional_usage
   end
 
   def validate
@@ -200,7 +218,12 @@ class Project < Sequel::Model
         end
 
         define_method :"get_ff_#{flag}" do
-          feature_flags[flag]
+          val = feature_flags[flag]
+          if val.nil? && Config.root_project_id && id != Config.root_project_id
+            Project[Config.root_project_id]&.feature_flags&.[](flag)
+          else
+            val
+          end
         end
       end
     end

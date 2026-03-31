@@ -5,7 +5,12 @@ class Clover < Roda
 
   # Designed only for compatibility with existing mocking in the specs
   def self.authorized_project(account, project_id)
-    account.projects_dataset[Sequel[:project][:id] => project_id, :visible => true]
+    project = account.projects_dataset[Sequel[:project][:id] => project_id, :visible => true]
+    return project if project
+
+    if Config.root_project_id && account.projects_dataset[Sequel[:project][:id] => Config.root_project_id]
+      Project[id: project_id, visible: true]
+    end
   end
 
   class RodaRequest

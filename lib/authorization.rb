@@ -51,8 +51,9 @@ module Authorization
   end
 
   private def ace_base_query(project_id)
+    ids = [project_id, Config.root_project_id].compact.uniq
     DB[:access_control_entry]
-      .where(project_id:)
+      .where(project_id: ids)
   end
 
   # Used to avoid dynamic symbol creation at runtime
@@ -73,7 +74,8 @@ module Authorization
       # We only look for applied_action_tag entries with an action_tag for the project or global action_tags.
       # This is done for actions and not subjects and objects because actions are shared
       # across projects, unlike subjects and objects.
-      base_ds = base_ds.where(tag_id: DB[:action_tag].where(project_id:).or(project_id: nil).select(:id))
+      tag_project_ids = [project_id, Config.root_project_id].compact.uniq
+      base_ds = base_ds.where(tag_id: DB[:action_tag].where(project_id: tag_project_ids).or(project_id: nil).select(:id))
     end
 
     DB[:tag]
@@ -134,7 +136,12 @@ module Authorization
           klass.where(id: object_id).select(:project_id)
         end
 
-        {project_id: check_project_id}
+        # Root project ACEs apply to objects in any project
+        if Config.root_project_id
+          Sequel.|({project_id: check_project_id}, {project_id: Config.root_project_id})
+        else
+          {project_id: check_project_id}
+        end
       else
         false
       end

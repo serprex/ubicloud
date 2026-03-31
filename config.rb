@@ -121,6 +121,7 @@ module Config
   optional :github_app_client_secret, string, clear: true
   optional :github_app_private_key, string, clear: true
   optional :github_app_webhook_secret, string, clear: true
+  optional :root_project_id, uuid
   optional :vm_pool_project_id, uuid
   optional :github_runner_service_project_id, uuid
   override :enable_github_workflow_poller, true, bool
