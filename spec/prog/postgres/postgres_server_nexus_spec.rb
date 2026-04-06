@@ -1447,6 +1447,10 @@ RSpec.describe Prog::Postgres::PostgresServerNexus do
   end
 
   describe "#destroy_vm_and_pg" do
+    before do
+      expect(sshable).to receive(:_cmd).with("sudo dmesg --time-format iso | tail -200", hash_including(log: false)).and_return("")
+    end
+
     it "deletes resources and exits" do
       vm = postgres_server.vm
 
@@ -1488,6 +1492,19 @@ RSpec.describe Prog::Postgres::PostgresServerNexus do
     end
 
     it "returns true if health check is successful" do
+      expect(server).to receive(:_run_query).with("SELECT 1").and_return("1")
+      expect(server).to receive(:_run_query).with("SELECT pg_catalog.pg_is_in_recovery()").and_return("f")
+      expect(nx.available?).to be(true)
+    end
+
+    it "returns false if primary is in recovery mode" do
+      expect(server).to receive(:_run_query).with("SELECT 1").and_return("1")
+      expect(server).to receive(:_run_query).with("SELECT pg_catalog.pg_is_in_recovery()").and_return("t")
+      expect(nx.available?).to be(false)
+    end
+
+    it "skips recovery check for standby servers" do
+      expect(server).to receive(:primary?).and_return(false)
       expect(server).to receive(:_run_query).with("SELECT 1").and_return("1")
       expect(nx.available?).to be(true)
     end

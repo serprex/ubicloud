@@ -820,6 +820,14 @@ SQL
   end
 
   label def destroy_vm_and_pg
+    # Best-effort: capture kernel logs before destroying the VM.
+    # This preserves OOM kill evidence that otelcol may not have shipped.
+    begin
+      dmesg = vm.sshable.cmd("sudo dmesg --time-format iso | tail -200", timeout: 10, log: false)
+      Clog.emit("dmesg before destroy", {dmesg_capture: {server: postgres_server.ubid, output: dmesg}})
+    rescue *Sshable::SSH_CONNECTION_ERRORS, Sshable::SshError
+    end
+
     vm.incr_destroy
     representative_server = resource&.representative_server
     postgres_server.destroy
@@ -836,6 +844,19 @@ SQL
 
     begin
       postgres_server.run_query("SELECT 1")
+
+      # A primary that is in recovery mode is not truly available — it
+      # cannot accept writes. This can happen if standby.signal survives
+      # a promotion restart. Declare unavailable so failover or corrective
+      # action is triggered.
+      if postgres_server.primary?
+        in_recovery = postgres_server.run_query("SELECT pg_catalog.pg_is_in_recovery()")
+        if in_recovery.strip == "t"
+          Clog.emit("Primary is in recovery mode", {primary_in_recovery: {server: postgres_server.ubid, resource: resource.ubid}})
+          return false
+        end
+      end
+
       return true
     rescue
       nil
