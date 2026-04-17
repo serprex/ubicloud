@@ -53,18 +53,20 @@ RSpec.describe PostgresUpgrade do
   end
 
   describe "#promote" do
-    it "promotes server using pg_promote" do
-      expect(postgres_upgrade).to receive(:r).with("sudo -u postgres psql -t -c 'SELECT pg_catalog.pg_is_in_recovery();' 2>/dev/null || echo 't'").and_return("t\n")
-      expect(postgres_upgrade).to receive(:r).with("sudo -u postgres psql -c \"SELECT pg_promote(true, 300)\"")
+    it "signals promotion and polls until out of recovery" do
+      expect(postgres_upgrade).to receive(:r).with("sudo -u postgres psql -t -c 'SELECT pg_catalog.pg_is_in_recovery();' 2>/dev/null || echo 't'").and_return("t\n", "t\n", "f\n")
+      expect(postgres_upgrade).to receive(:r).with("sudo -u postgres psql -c \"SELECT pg_promote(false)\"")
+      expect(postgres_upgrade).to receive(:sleep).with(1).once
       postgres_upgrade.promote(16)
     end
 
     it "skips promotion if server is already promoted" do
       expect(postgres_upgrade).to receive(:r).with("sudo -u postgres psql -t -c 'SELECT pg_catalog.pg_is_in_recovery();' 2>/dev/null || echo 't'").and_return("f\n")
-      expect(postgres_upgrade).not_to receive(:r).with("sudo -u postgres psql -c \"SELECT pg_promote(true, 300)\"")
+      expect(postgres_upgrade).not_to receive(:r).with(/pg_promote/)
       expect(logger).to receive(:info).with("Server is already promoted (not in recovery mode)")
       postgres_upgrade.promote(16)
     end
+
   end
 
   describe "#remove_walg_credentials" do

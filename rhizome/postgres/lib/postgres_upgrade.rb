@@ -28,13 +28,19 @@ class PostgresUpgrade
     r "sudo systemctl stop wal-g", expect: [0, 1, 4, 5]
   end
 
+  def in_recovery?
+    r("sudo -u postgres psql -t -c 'SELECT pg_catalog.pg_is_in_recovery();' 2>/dev/null || echo 't'").strip == "t"
+  end
+
   def promote(version)
-    if r("sudo -u postgres psql -t -c 'SELECT pg_catalog.pg_is_in_recovery();' 2>/dev/null || echo 't'").strip == "f"
+    unless in_recovery?
       @logger.info("Server is already promoted (not in recovery mode)")
       return
     end
 
-    r "sudo -u postgres psql -c \"SELECT pg_promote(true, 300)\""
+    r "sudo -u postgres psql -c \"SELECT pg_promote(false)\""
+
+    sleep 1 while in_recovery?
   end
 
   def disable_previous_version
