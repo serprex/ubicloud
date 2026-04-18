@@ -14,7 +14,7 @@ class Prog::Postgres::PostgresResourceNexus < Prog::Base
   def self.assemble(project_id:, location_id:, name:, target_vm_size:, target_storage_size_gib:,
     target_version: PostgresResource::DEFAULT_VERSION, flavor: PostgresResource::Flavor::STANDARD,
     ha_type: PostgresResource::HaType::NONE, parent_id: nil, tags: [], restore_target: nil, with_firewall_rules: true,
-    user_config: {}, pgbouncer_user_config: {}, private_subnet_name: nil, init_script: nil)
+    user_config: {}, pgbouncer_user_config: {}, private_subnet_name: nil, init_script: nil, restore_from_timeline_id: nil)
 
     unless (project = Project[project_id])
       fail "No existing project"
@@ -24,8 +24,29 @@ class Prog::Postgres::PostgresResourceNexus < Prog::Base
       fail "No existing location"
     end
 
+    if restore_from_timeline_id && parent_id
+      fail "Cannot specify both parent_id and restore_from_timeline_id"
+    end
+
     DB.transaction do
-      superuser_password, timeline_id, timeline_access, target_version = if parent_id.nil?
+      superuser_password, timeline_id, timeline_access, target_version = if restore_from_timeline_id
+        unless (timeline = PostgresTimeline[restore_from_timeline_id])
+          fail "No existing timeline"
+        end
+
+        if restore_target
+          restore_target = Validation.validate_date(restore_target, "restore_target")
+          earliest_restore_time = timeline.earliest_restore_time
+          latest_restore_time = timeline.latest_restore_time
+
+          unless earliest_restore_time && earliest_restore_time <= restore_target &&
+              latest_restore_time && restore_target <= latest_restore_time
+            fail Validation::ValidationFailed.new({restore_target: "Restore target must be between #{earliest_restore_time} and #{latest_restore_time}"})
+          end
+        end
+
+        [SecureRandom.urlsafe_base64(15), timeline.id, "fetch", target_version]
+      elsif parent_id.nil?
         [SecureRandom.urlsafe_base64(15), Prog::Postgres::PostgresTimelineNexus.assemble(location_id: location.id).id, "push", target_version]
       else
         unless (parent = PostgresResource[parent_id])
