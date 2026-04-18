@@ -115,10 +115,19 @@ RSpec.describe PostgresServer do
       expect(postgres_server.configure_hash[:configs]).to include(:primary_conninfo, :restore_command)
     end
 
-    it "sets configs that are specific to restoring servers" do
+    it "sets configs that are specific to PITR-by-time restore" do
       postgres_server.update(timeline_access: "fetch")
-      expect(resource).to receive(:restore_target)
+      expect(resource).to receive(:restore_target).and_return("2026-01-01 00:00:00").at_least(:once)
       expect(postgres_server.configure_hash[:configs]).to include(:recovery_target_time, :restore_command)
+    end
+
+    it "omits recovery_target_lsn for unarchive: target may sit in unarchived segment, FATAL" do
+      postgres_server.update(timeline_access: "fetch")
+      resource.update(restore_target_lsn: "2/4000000")
+      configs = postgres_server.configure_hash[:configs]
+      expect(configs).to include(:restore_command)
+      expect(configs).not_to include(:recovery_target_lsn)
+      expect(configs).not_to include(:recovery_target_time)
     end
 
     it "sets primary_slot_name to ubid on standby when physical slot ready" do

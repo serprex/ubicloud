@@ -121,7 +121,10 @@ class PostgresServer < Sequel::Model
         configs[:primary_slot_name] = "'#{ubid}'" if physical_slot_ready_id == resource.representative_server.id
       end
 
-      if doing_pitr?
+      if doing_pitr? && resource.restore_target
+        # restore_target_lsn (unarchive) doesn't set a recovery target: archive
+        # tail can sit inside an unarchived segment, making the LSN unreachable.
+        # recovery.signal terminates when WAL is exhausted, then promotes.
         configs[:recovery_target_time] = "'#{resource.restore_target}'"
       end
 
