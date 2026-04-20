@@ -37,6 +37,7 @@ RSpec.describe Clover, "jwt auth" do
   before do
     postgres_project = Project.create(name: "default")
     allow(Config).to receive(:postgres_service_project_id).and_return(postgres_project.id)
+    TrustedJwtIssuer::JWKS_CACHE.clear
   end
 
   it "authenticates with valid JWT" do
@@ -82,6 +83,56 @@ RSpec.describe Clover, "jwt auth" do
     get "/project/#{project.ubid}/postgres"
 
     expect(last_response).to have_api_error(401)
+  end
+
+  it "rejects token missing exp claim" do
+    issuer_config
+    token = JWT.encode({"iss" => issuer_config.issuer}, rsa_key, "RS256", {kid: "test-key-1"})
+    header "Authorization", "Bearer #{token}"
+    get "/project/#{project.ubid}/postgres"
+
+    expect(last_response).to have_api_error(401)
+  end
+
+  it "rejects expired token" do
+    header "Authorization", "Bearer #{mint_jwt("exp" => Time.now.to_i - 120)}"
+    get "/project/#{project.ubid}/postgres"
+
+    expect(last_response).to have_api_error(401)
+  end
+
+  context "with audience configured" do
+    let(:issuer_config) do
+      config = TrustedJwtIssuer.create(
+        project_id: project.id,
+        account_id: service_account.id,
+        name: "test-issuer",
+        issuer: "https://auth.example.com",
+        jwks_uri: "https://auth.example.com/.well-known/jwks.json",
+        audience: "ubicloud",
+      )
+      stub_request(:get, config.jwks_uri)
+        .to_return(body: {keys: [jwk.export]}.to_json)
+      config
+    end
+
+    it "authenticates when aud matches" do
+      header "Authorization", "Bearer #{mint_jwt("aud" => "ubicloud")}"
+      get "/project/#{project.ubid}/postgres"
+      expect(last_response.status).to eq(200)
+    end
+
+    it "rejects when aud missing" do
+      header "Authorization", "Bearer #{mint_jwt}"
+      get "/project/#{project.ubid}/postgres"
+      expect(last_response).to have_api_error(401)
+    end
+
+    it "rejects when aud mismatched" do
+      header "Authorization", "Bearer #{mint_jwt("aud" => "other")}"
+      get "/project/#{project.ubid}/postgres"
+      expect(last_response).to have_api_error(401)
+    end
   end
 
   it "defers to PAT when URL has no project path" do

@@ -351,6 +351,7 @@ Options:
     -n, --name=name                  name for the issuer
     -i, --issuer=iss                 issuer (iss claim value)
     -j, --jwks-uri=uri               JWKS endpoint URI
+    -a, --audience=aud               required aud claim value
 
 
 List trusted JWT issuers

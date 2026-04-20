@@ -10,6 +10,7 @@ RSpec.describe Clover, "cli jw show" do
       name: "test-issuer",
       issuer: "https://auth.example.com",
       jwks_uri: "https://auth.example.com/.well-known/jwks.json",
+      audience: "ubicloud",
     )
 
     body = cli(%W[jw #{ji.ubid} show])
@@ -17,5 +18,6 @@ RSpec.describe Clover, "cli jw show" do
     expect(body).to include("name: test-issuer")
     expect(body).to include("issuer: https://auth.example.com")
     expect(body).to include("jwks_uri: https://auth.example.com/.well-known/jwks.json")
+    expect(body).to include("audience: ubicloud")
   end
 end

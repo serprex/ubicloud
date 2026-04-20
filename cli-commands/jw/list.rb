@@ -12,6 +12,6 @@ UbiCli.on("jw", "list") do
   run do |opts|
     opts = opts[key]
     items = sdk.trusted_jwt_issuer.list
-    response(format_rows(%i[id name issuer jwks_uri], items, headers: opts[:"no-headers"] != false))
+    response(format_rows(%i[id name issuer audience jwks_uri], items, headers: opts[:"no-headers"] != false))
   end
 end

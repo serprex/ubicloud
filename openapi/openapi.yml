@@ -2675,6 +2675,8 @@ components:
           type: string
         jwks_uri:
           type: string
+        audience:
+          type: string
       additionalProperties: false
       required:
         - name
@@ -2697,12 +2699,17 @@ components:
         jwks_uri:
           description: JWKS endpoint URI
           type: string
+        audience:
+          description: Required aud claim value (optional)
+          type: string
+          nullable: true
       additionalProperties: false
       required:
         - id
         - name
         - issuer
         - jwks_uri
+        - audience
     SshPublicKeyCreate:
       type: object
       properties:

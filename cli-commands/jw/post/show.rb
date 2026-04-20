@@ -11,7 +11,8 @@ UbiCli.on("jw").run_on("show") do
       "id: ", jw.id, "\n",
       "name: ", jw.name, "\n",
       "issuer: ", jw.issuer, "\n",
-      "jwks_uri: ", jw.jwks_uri,
+      "jwks_uri: ", jw.jwks_uri, "\n",
+      "audience: ", jw.audience.to_s,
     ])
   end
 end

@@ -60,7 +60,7 @@
 
   <%== part(
     "components/table_card",
-    headers: ["Name", "Issuer", "JWKS URI", ""],
+    headers: ["Name", "Issuer", "Audience", "JWKS URI", ""],
     empty_state: {
       icon: "hero-key",
       title: "No trusted JWT issuers",
@@ -72,6 +72,7 @@
           [
             ji.name,
             ji.issuer,
+            ji.audience,
             ji.jwks_uri,
             [
               "delete_button",
@@ -94,6 +95,7 @@
     <%== f.input(:text, key: "name", label: "Name", attributes: {required: true, placeholder: "e.g. control-plane"}) %>
     <%== f.input(:text, key: "issuer", label: "Issuer (iss claim)", attributes: {required: true, placeholder: "e.g. https://auth.example.com"}) %>
     <%== f.input(:text, key: "jwks_uri", label: "JWKS URI", attributes: {required: true, placeholder: "e.g. https://auth.example.com/.well-known/jwks.json"}) %>
+    <%== f.input(:text, key: "audience", label: "Audience (aud claim, optional)", attributes: {placeholder: "e.g. ubicloud"}) %>
     <%== f.button("Add Trusted Issuer") %>
   <% end %>
 </div>

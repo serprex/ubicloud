@@ -221,6 +221,7 @@ RSpec.describe Clover, "personal access token management" do
     fill_in "name", with: "test-issuer"
     fill_in "issuer", with: "https://auth.example.com"
     fill_in "jwks_uri", with: "https://auth.example.com/.well-known/jwks.json"
+    fill_in "audience", with: "ubicloud"
     click_button "Add Trusted Issuer"
 
     expect(find_by_id("flash-notice").text).to eq "Trusted JWT issuer created"
@@ -228,6 +229,7 @@ RSpec.describe Clover, "personal access token management" do
     ji = TrustedJwtIssuer.first
     expect(ji.name).to eq("test-issuer")
     expect(ji.issuer).to eq("https://auth.example.com")
+    expect(ji.audience).to eq("ubicloud")
     expect(ji.account_id).to eq(user.id)
   end
 

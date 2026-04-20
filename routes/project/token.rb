@@ -26,6 +26,7 @@ class Clover
           name = typecast_body_params.nonempty_str!("name")
           issuer = typecast_body_params.nonempty_str!("issuer")
           jwks_uri = typecast_body_params.nonempty_str!("jwks_uri")
+          audience = typecast_body_params.nonempty_str("audience")
 
           jwt_issuer = nil
           DB.transaction do
@@ -35,6 +36,7 @@ class Clover
               name:,
               issuer:,
               jwks_uri:,
+              audience:,
             )
             audit_log(jwt_issuer, "create")
           end

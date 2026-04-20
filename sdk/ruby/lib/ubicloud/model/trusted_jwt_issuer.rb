@@ -6,10 +6,12 @@ module Ubicloud
 
     set_fragment "token/jwt-issuer"
 
-    set_columns :id, :name, :issuer, :jwks_uri
+    set_columns :id, :name, :issuer, :jwks_uri, :audience
 
-    def self.create(adapter, name:, issuer:, jwks_uri:)
-      new(adapter, adapter.post(fragment.to_s, name:, issuer:, jwks_uri:))
+    def self.create(adapter, name:, issuer:, jwks_uri:, audience: nil)
+      body = {name:, issuer:, jwks_uri:}
+      body[:audience] = audience if audience
+      new(adapter, adapter.post(fragment.to_s, **body))
     end
 
     def self.list(adapter)

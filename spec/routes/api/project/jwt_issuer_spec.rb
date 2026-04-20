@@ -17,6 +17,7 @@ RSpec.describe Clover, "jwt issuer api" do
       name: "test",
       issuer: "https://auth.example.com",
       jwks_uri: "https://auth.example.com/.well-known/jwks.json",
+      audience: "ubicloud",
     )
 
     get "/project/#{project.ubid}/token/jwt-issuer"
@@ -28,6 +29,7 @@ RSpec.describe Clover, "jwt issuer api" do
     expect(body["items"][0]["name"]).to eq("test")
     expect(body["items"][0]["issuer"]).to eq("https://auth.example.com")
     expect(body["items"][0]["jwks_uri"]).to eq("https://auth.example.com/.well-known/jwks.json")
+    expect(body["items"][0]["audience"]).to eq("ubicloud")
   end
 
   it "lists empty when no issuers" do
@@ -45,7 +47,25 @@ RSpec.describe Clover, "jwt issuer api" do
     body = JSON.parse(last_response.body)
     expect(body["name"]).to eq("new-issuer")
     expect(body["issuer"]).to eq("https://new.example.com")
+    expect(body["audience"]).to be_nil
     expect(TrustedJwtIssuer.count).to eq(1)
+  end
+
+  it "creates a jwt issuer with audience" do
+    post "/project/#{project.ubid}/token/jwt-issuer",
+      {name: "new-issuer", issuer: "https://new.example.com", jwks_uri: "https://new.example.com/.well-known/jwks.json", audience: "ubicloud"}.to_json
+
+    expect(last_response.status).to eq(200)
+    body = JSON.parse(last_response.body)
+    expect(body["audience"]).to eq("ubicloud")
+    expect(TrustedJwtIssuer.first.audience).to eq("ubicloud")
+  end
+
+  it "rejects insecure jwks_uri" do
+    post "/project/#{project.ubid}/token/jwt-issuer",
+      {name: "bad", issuer: "https://new.example.com", jwks_uri: "http://new.example.com/.well-known/jwks.json"}.to_json
+
+    expect(last_response.status).to eq(400)
   end
 
   it "gets a jwt issuer" do

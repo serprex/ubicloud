@@ -7,6 +7,7 @@ class Serializers::TrustedJwtIssuer < Serializers::Base
       name: issuer.name,
       issuer: issuer.issuer,
       jwks_uri: issuer.jwks_uri,
+      audience: issuer.audience,
     }
   end
 end
