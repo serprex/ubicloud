@@ -16,7 +16,7 @@ RSpec.describe Clover, "jwt issuer api" do
       account_id: user.id,
       name: "test",
       issuer: "https://auth.example.com",
-      jwks_uri: "https://auth.example.com/.well-known/jwks.json"
+      jwks_uri: "https://auth.example.com/.well-known/jwks.json",
     )
 
     get "/project/#{project.ubid}/token/jwt-issuer"
@@ -54,7 +54,7 @@ RSpec.describe Clover, "jwt issuer api" do
       account_id: user.id,
       name: "test",
       issuer: "https://auth.example.com",
-      jwks_uri: "https://auth.example.com/.well-known/jwks.json"
+      jwks_uri: "https://auth.example.com/.well-known/jwks.json",
     )
 
     get "/project/#{project.ubid}/token/jwt-issuer/#{ji.ubid}"
@@ -76,7 +76,7 @@ RSpec.describe Clover, "jwt issuer api" do
       account_id: user.id,
       name: "to-delete",
       issuer: "https://delete.example.com",
-      jwks_uri: "https://delete.example.com/.well-known/jwks.json"
+      jwks_uri: "https://delete.example.com/.well-known/jwks.json",
     )
 
     delete "/project/#{project.ubid}/token/jwt-issuer/#{ji.ubid}"

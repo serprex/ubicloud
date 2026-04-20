@@ -237,7 +237,7 @@ RSpec.describe Clover, "personal access token management" do
       account_id: user.id,
       name: "to-delete",
       issuer: "https://delete.example.com",
-      jwks_uri: "https://delete.example.com/.well-known/jwks.json"
+      jwks_uri: "https://delete.example.com/.well-known/jwks.json",
     )
 
     visit "#{project.path}/token"
@@ -256,7 +256,7 @@ RSpec.describe Clover, "personal access token management" do
       account_id: user.id,
       name: "test",
       issuer: "https://test.example.com",
-      jwks_uri: "https://test.example.com/.well-known/jwks.json"
+      jwks_uri: "https://test.example.com/.well-known/jwks.json",
     )
     visit "#{project.path}/token/jwt-issuer/#{ji.ubid}"
     expect(page.status_code).to eq(404)

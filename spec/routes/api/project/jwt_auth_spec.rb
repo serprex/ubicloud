@@ -22,7 +22,7 @@ RSpec.describe Clover, "jwt auth" do
       account_id: service_account.id,
       name: "test-issuer",
       issuer: "https://auth.example.com",
-      jwks_uri: "https://auth.example.com/.well-known/jwks.json"
+      jwks_uri: "https://auth.example.com/.well-known/jwks.json",
     )
     stub_request(:get, config.jwks_uri)
       .to_return(body: {keys: [jwk.export]}.to_json)
@@ -133,7 +133,7 @@ RSpec.describe Clover, "jwt auth" do
       location_id: Location::HETZNER_FSN1_ID,
       name: "pg-visible",
       target_vm_size: "standard-2",
-      target_storage_size_gib: 128
+      target_storage_size_gib: 128,
     ).subject
 
     Prog::Postgres::PostgresResourceNexus.assemble(
@@ -141,7 +141,7 @@ RSpec.describe Clover, "jwt auth" do
       location_id: Location::HETZNER_FSN1_ID,
       name: "pg-hidden",
       target_vm_size: "standard-2",
-      target_storage_size_gib: 128
+      target_storage_size_gib: 128,
     )
 
     # Issuer only has access to pg1
@@ -149,7 +149,7 @@ RSpec.describe Clover, "jwt auth" do
       project_id: project.id,
       subject_id: issuer_config.id,
       action_id: ActionType::NAME_MAP.fetch("Postgres:view"),
-      object_id: pg1.id
+      object_id: pg1.id,
     )
 
     header "Authorization", "Bearer #{mint_jwt}"

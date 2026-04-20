@@ -47,7 +47,10 @@ module Ubicloud
     end
 
     def name
-      @values.fetch(:name) { info; @values[:name] }
+      @values.fetch(:name) {
+        info
+        @values[:name]
+      }
     end
 
     def check_exists

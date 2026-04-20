@@ -34,7 +34,7 @@ class Clover
               account_id: current_account_id,
               name:,
               issuer:,
-              jwks_uri:
+              jwks_uri:,
             )
             audit_log(jwt_issuer, "create")
           end

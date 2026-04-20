@@ -9,7 +9,7 @@ RSpec.describe Clover, "cli jw show" do
       account_id: @account.id,
       name: "test-issuer",
       issuer: "https://auth.example.com",
-      jwks_uri: "https://auth.example.com/.well-known/jwks.json"
+      jwks_uri: "https://auth.example.com/.well-known/jwks.json",
     )
 
     body = cli(%W[jw #{ji.ubid} show])
