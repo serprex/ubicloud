@@ -9,6 +9,8 @@ Sequel.migration do
       column :name, :text, null: false
       column :issuer, :text, null: false
       column :jwks_uri, :text, null: false
+      column :audience, :text
+      column :created_at, :timestamptz, null: false, default: Sequel::CURRENT_TIMESTAMP
 
       unique [:project_id, :issuer]
     end
