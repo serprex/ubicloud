@@ -173,6 +173,7 @@ usermod -L ubuntu
             },
           ],
         }.to_json,
+        tags: Util.aws_tags(vm.name),
       }).and_call_original
 
       expect { nx.start }.to hop("create_role_policy")
@@ -189,7 +190,7 @@ usermod -L ubuntu
             Action: "sts:AssumeRole",
           },
         ],
-      }.to_json}).and_raise(Aws::IAM::Errors::EntityAlreadyExists.new(nil, "EntityAlreadyExists"))
+      }.to_json, tags: Util.aws_tags(vm.name)}).and_raise(Aws::IAM::Errors::EntityAlreadyExists.new(nil, "EntityAlreadyExists"))
       expect { nx.start }.to hop("create_role_policy")
     end
 
@@ -230,6 +231,7 @@ usermod -L ubuntu
             },
           ],
         }.to_json,
+        tags: Util.aws_tags("#{vm.name}-cw-agent-policy"),
       }).and_call_original
 
       expect { nx.create_role_policy }.to hop("attach_role_policy")
@@ -266,6 +268,7 @@ usermod -L ubuntu
       iam_client.stub_responses(:create_instance_profile, instance_profile: {instance_profile_name: "#{vm.name}-instance-profile", instance_profile_id: "test-id", path: "/", roles: [], arn: "arn:aws:iam::123456789012:instance-profile/#{vm.name}-instance-profile", create_date: Time.now})
       expect(iam_client).to receive(:create_instance_profile).with({
         instance_profile_name: "#{vm.name}-instance-profile",
+        tags: Util.aws_tags("#{vm.name}-instance-profile"),
       }).and_call_original
 
       expect { nx.create_instance_profile }.to hop("add_role_to_instance_profile")
@@ -348,7 +351,7 @@ usermod -L ubuntu
         metadata_options: {http_tokens: "required"},
         min_count: 1,
         max_count: 1,
-        tag_specifications: Util.aws_tag_specifications("instance", vm.name),
+        tag_specifications: Util.aws_tag_specifications("instance", vm.name) + Util.aws_tag_specifications("volume", vm.name),
         iam_instance_profile: {name: "#{vm.name}-instance-profile"},
         client_token: vm.id,
         instance_market_options: nil,
