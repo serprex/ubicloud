@@ -515,7 +515,7 @@ usermod -L ubuntu
       it "pages and naps 1 hour when all AZs are unsupported" do
         refresh_frame(nx, new_values: {"unsupported_azs" => ["b", "c", "d", "e", "f"]})
         expect(Clog).to receive(:emit).with("all azs unsupported for instance type", instance_of(Hash))
-        expect(Prog::PageNexus).to receive(:assemble).with("#{vm.name} instance type unsupported in all AZs", ["InstanceTypeUnsupported", vm.id], vm.ubid, severity: "error")
+        expect(Prog::PageNexus).to receive(:assemble).with("#{vm.name} instance type unsupported in all AZs", ["InstanceTypeUnsupported", vm.id], vm.ubid)
         expect { nx.create_instance }.to nap(60 * 60)
         expect(st.stack.last["unsupported_azs"]).to eq(["b", "c", "d", "e", "f", "a"])
         expect(st.stack.last["exclude_availability_zones"]).to eq([])
