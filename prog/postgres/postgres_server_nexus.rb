@@ -730,8 +730,8 @@ SQL
     # to avoid stopping all workloads for a long shutdown checkpoint.
     postgres_server.run_query("CHECKPOINT; CHECKPOINT; CHECKPOINT;")
     postgres_server.vm.sshable.cmd("sudo postgres/bin/lockout :version", version:)
-    postgres_server.vm.sshable.cmd("sudo pg_ctlcluster :version main stop -m smart", version:)
     postgres_server.vm.sshable.cmd("sudo systemctl stop postgres-metrics.timer")
+    postgres_server.vm.sshable.cmd("sudo pg_ctlcluster :version main stop -m fast", version:)
 
     hop_wait_in_fence
   end

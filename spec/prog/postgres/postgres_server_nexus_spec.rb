@@ -1249,8 +1249,8 @@ RSpec.describe Prog::Postgres::PostgresServerNexus do
       expect(nx).to receive(:decr_fence)
       expect(server).to receive(:_run_query).with("CHECKPOINT; CHECKPOINT; CHECKPOINT;")
       expect(sshable).to receive(:_cmd).with("sudo postgres/bin/lockout 17")
-      expect(sshable).to receive(:_cmd).with("sudo pg_ctlcluster 17 main stop -m smart")
       expect(sshable).to receive(:_cmd).with("sudo systemctl stop postgres-metrics.timer")
+      expect(sshable).to receive(:_cmd).with("sudo pg_ctlcluster 17 main stop -m fast")
       expect { nx.fence }.to hop("wait_in_fence")
     end
 
