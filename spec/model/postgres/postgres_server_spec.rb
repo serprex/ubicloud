@@ -121,9 +121,9 @@ RSpec.describe PostgresServer do
       expect(postgres_server.configure_hash[:configs]).to include(:recovery_target_time, :restore_command)
     end
 
-    it "omits recovery_target_lsn for unarchive: target may sit in unarchived segment, FATAL" do
+    it "omits recovery targets for unarchive: archive tail may sit in unarchived segment" do
       postgres_server.update(timeline_access: "fetch")
-      resource.update(restore_target_lsn: "2/4000000")
+      postgres_server.incr_unarchive
       configs = postgres_server.configure_hash[:configs]
       expect(configs).to include(:restore_command)
       expect(configs).not_to include(:recovery_target_lsn)

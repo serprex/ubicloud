@@ -103,6 +103,23 @@ RSpec.describe Prog::Postgres::PostgresResourceNexus do
       expect(restored.superuser_password).not_to eq(existing.superuser_password)
     end
 
+    it "supports PITR via restore_from_timeline_id after the original resource is deleted" do
+      original = described_class.assemble(project_id: customer_project.id, location_id:, name: "pg-deleted", target_vm_size: "standard-2", target_storage_size_gib: 128).subject
+      timeline = original.representative_server.timeline
+      restore_target = Time.now
+      timeline.update(cached_earliest_backup_at: restore_target - 15 * 60)
+      original.representative_server.destroy
+      original.destroy
+
+      restored = described_class.assemble(
+        project_id: customer_project.id, location_id:, name: "pg-pitr", target_vm_size: "standard-2", target_storage_size_gib: 128,
+        restore_from_timeline_id: timeline.id, restore_target:,
+      ).subject
+
+      expect(restored.representative_server.timeline_id).to eq(timeline.id)
+      expect(restored.restore_target).to be_within(1).of(restore_target)
+    end
+
     it "rejects restore_from_timeline_id with parent_id" do
       expect {
         described_class.assemble(project_id: customer_project.id, location_id:, name: "pg-name", target_vm_size: "standard-2", target_storage_size_gib: 128,
@@ -258,10 +275,10 @@ RSpec.describe Prog::Postgres::PostgresResourceNexus do
       expect(restored.name).to eq("pg-archived")
       expect(restored.project_id).to eq(customer_project.id)
       expect(restored.id).not_to eq(id)
-      expect(restored.restore_target_lsn).to eq("2/4000000")
       expect(restored.restore_target).to be_nil
       expect(restored.representative_server.timeline_id).to eq(timeline.id)
       expect(restored.representative_server.timeline_access).to eq("fetch")
+      expect(restored.representative_server.unarchive_set?).to be true
       expect(restored.representative_server.update_superuser_password_set?).to be true
     end
   end
