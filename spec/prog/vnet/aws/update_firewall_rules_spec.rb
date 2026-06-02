@@ -32,107 +32,84 @@ RSpec.describe Prog::Vnet::Aws::UpdateFirewallRules do
   end
 
   describe "update_firewall_rules" do
-    let(:ec2_client) { instance_double(Aws::EC2::Client) }
+    let(:ec2_client) { Aws::EC2::Client.new(stub_responses: true) }
 
     before do
       lcred = instance_double(LocationCredentialAws, client: ec2_client)
       loc = instance_double(Location, provider: "aws", location_credential_aws: lcred)
       allow(nx).to receive(:vm).and_return(vm)
       allow(vm).to receive(:location).and_return(loc)
+      allow(vm.private_subnets.first).to receive(:private_subnet_aws_resource).and_return(instance_double(PrivateSubnetAwsResource, security_group_id: "sg-1234567890"))
     end
 
     it "hops to remove_aws_old_rules if there are no fw rules to add" do
       expect(nx).to receive(:vm).and_return(vm).at_least(:once)
       expect(vm).to receive(:firewall_rules).and_return([])
+      ec2_client.stub_responses(:describe_security_groups, security_groups: [ip_permissions: []])
+      expect(ec2_client).not_to receive(:authorize_security_group_ingress)
       expect { nx.update_firewall_rules }.to hop("remove_aws_old_rules")
     end
 
-    it "hops to remove_aws_firewall_rules after adding new rules" do
+    it "adds all missing rules in a single call then hops to remove_aws_old_rules" do
       expect(nx).to receive(:vm).and_return(vm).at_least(:once)
       expect(vm).to receive(:firewall_rules).and_return([
-        instance_double(FirewallRule, ip6?: false, cidr: NetAddr::IPv4Net.parse("0.0.0.0/0"), port_range: Sequel.pg_range(80..10000), protocol: "tcp"),
-        instance_double(FirewallRule, ip6?: false, cidr: NetAddr::IPv4Net.parse("1.1.1.1/32"), port_range: Sequel.pg_range(22..23), protocol: "tcp"),
-        instance_double(FirewallRule, ip6?: true, cidr: NetAddr::IPv6Net.parse("fd00::1/128"), port_range: Sequel.pg_range(80..10000), protocol: "tcp"),
+        instance_double(FirewallRule, cidr: NetAddr::IPv4Net.parse("0.0.0.0/0"), port_range: Sequel.pg_range(80..10000), protocol: "tcp"),
+        instance_double(FirewallRule, cidr: NetAddr::IPv4Net.parse("1.1.1.1/32"), port_range: Sequel.pg_range(22..23), protocol: "tcp"),
+        instance_double(FirewallRule, cidr: NetAddr::IPv6Net.parse("fd00::1/128"), port_range: Sequel.pg_range(80..10000), protocol: "tcp"),
       ])
-      expect(vm.private_subnets.first).to receive(:private_subnet_aws_resource).and_return(instance_double(PrivateSubnetAwsResource, security_group_id: "sg-1234567890")).at_least(:once)
+      ec2_client.stub_responses(:describe_security_groups, security_groups: [ip_permissions: []])
       expect(ec2_client).to receive(:authorize_security_group_ingress).with({
         group_id: "sg-1234567890",
         ip_permissions: [
-          {
-            ip_protocol: "tcp",
-            from_port: 80,
-            to_port: 9999,
-            ip_ranges: [{cidr_ip: "0.0.0.0/0"}],
-          },
-        ],
-      })
-      expect(ec2_client).to receive(:authorize_security_group_ingress).with({
-        group_id: "sg-1234567890",
-        ip_permissions: [
-          {
-            ip_protocol: "tcp",
-            from_port: 22,
-            to_port: 22,
-            ip_ranges: [{cidr_ip: "1.1.1.1/32"}],
-          },
-        ],
-      })
-      expect(ec2_client).to receive(:authorize_security_group_ingress).with({
-        group_id: "sg-1234567890",
-        ip_permissions: [
-          {
-            ip_protocol: "tcp",
-            from_port: 80,
-            to_port: 9999,
-            ipv_6_ranges: [{cidr_ipv_6: "fd00::1/128"}],
-          },
+          {ip_protocol: "tcp", from_port: 80, to_port: 9999, ip_ranges: [{cidr_ip: "0.0.0.0/0"}], ipv_6_ranges: [{cidr_ipv_6: "fd00::1/128"}]},
+          {ip_protocol: "tcp", from_port: 22, to_port: 22, ip_ranges: [{cidr_ip: "1.1.1.1/32"}]},
         ],
       })
 
       expect { nx.update_firewall_rules }.to hop("remove_aws_old_rules")
     end
 
-    it "continues and hops to remove_aws_old_rules if there is a duplicate rule" do
+    it "only authorizes rules not already present in the security group" do
       expect(nx).to receive(:vm).and_return(vm).at_least(:once)
       expect(vm).to receive(:firewall_rules).and_return([
-        instance_double(FirewallRule, ip6?: false, cidr: NetAddr::IPv4Net.parse("0.0.0.0/0"), port_range: Sequel.pg_range(80..10000), protocol: "tcp"),
-        instance_double(FirewallRule, ip6?: false, cidr: NetAddr::IPv4Net.parse("1.1.1.1/32"), port_range: Sequel.pg_range(22..23), protocol: "tcp"),
-        instance_double(FirewallRule, ip6?: true, cidr: NetAddr::IPv6Net.parse("fd00::1/128"), port_range: Sequel.pg_range(80..10000), protocol: "tcp"),
+        instance_double(FirewallRule, cidr: NetAddr::IPv4Net.parse("0.0.0.0/0"), port_range: Sequel.pg_range(80..10000), protocol: "tcp"),
+        instance_double(FirewallRule, cidr: NetAddr::IPv4Net.parse("1.1.1.1/32"), port_range: Sequel.pg_range(22..23), protocol: "tcp"),
+        instance_double(FirewallRule, cidr: NetAddr::IPv6Net.parse("fd00::1/128"), port_range: Sequel.pg_range(80..10000), protocol: "tcp"),
       ])
-      expect(vm.private_subnets.first).to receive(:private_subnet_aws_resource).and_return(instance_double(PrivateSubnetAwsResource, security_group_id: "sg-1234567890")).at_least(:once)
+      ec2_client.stub_responses(:describe_security_groups, security_groups: [ip_permissions: [
+        {ip_protocol: "tcp", from_port: 80, to_port: 9999, ip_ranges: [{cidr_ip: "0.0.0.0/0"}], ipv_6_ranges: []},
+      ]])
       expect(ec2_client).to receive(:authorize_security_group_ingress).with({
         group_id: "sg-1234567890",
         ip_permissions: [
-          {
-            ip_protocol: "tcp",
-            from_port: 80,
-            to_port: 9999,
-            ip_ranges: [{cidr_ip: "0.0.0.0/0"}],
-          },
-        ],
-      }).and_raise(Aws::EC2::Errors::InvalidPermissionDuplicate.new("Duplicate", "Duplicate"))
-      expect(ec2_client).to receive(:authorize_security_group_ingress).with({
-        group_id: "sg-1234567890",
-        ip_permissions: [
-          {
-            ip_protocol: "tcp",
-            from_port: 22,
-            to_port: 22,
-            ip_ranges: [{cidr_ip: "1.1.1.1/32"}],
-          },
+          {ip_protocol: "tcp", from_port: 22, to_port: 22, ip_ranges: [{cidr_ip: "1.1.1.1/32"}]},
+          {ip_protocol: "tcp", from_port: 80, to_port: 9999, ipv_6_ranges: [{cidr_ipv_6: "fd00::1/128"}]},
         ],
       })
-      expect(ec2_client).to receive(:authorize_security_group_ingress).with({
-        group_id: "sg-1234567890",
-        ip_permissions: [
-          {
-            ip_protocol: "tcp",
-            from_port: 80,
-            to_port: 9999,
-            ipv_6_ranges: [{cidr_ipv_6: "fd00::1/128"}],
-          },
-        ],
-      })
+
+      expect { nx.update_firewall_rules }.to hop("remove_aws_old_rules")
+    end
+
+    it "does not authorize when all rules already present" do
+      expect(nx).to receive(:vm).and_return(vm).at_least(:once)
+      expect(vm).to receive(:firewall_rules).and_return([
+        instance_double(FirewallRule, cidr: NetAddr::IPv4Net.parse("0.0.0.0/0"), port_range: Sequel.pg_range(80..10000), protocol: "tcp"),
+        instance_double(FirewallRule, cidr: NetAddr::IPv6Net.parse("fd00::1/128"), port_range: Sequel.pg_range(80..10000), protocol: "tcp"),
+      ])
+      ec2_client.stub_responses(:describe_security_groups, security_groups: [ip_permissions: [
+        {ip_protocol: "tcp", from_port: 80, to_port: 9999, ip_ranges: [{cidr_ip: "0.0.0.0/0"}], ipv_6_ranges: [{cidr_ipv_6: "fd00::1/128"}]},
+      ]])
+      expect(ec2_client).not_to receive(:authorize_security_group_ingress)
+      expect { nx.update_firewall_rules }.to hop("remove_aws_old_rules")
+    end
+
+    it "swallows InvalidPermissionDuplicate and hops to remove_aws_old_rules" do
+      expect(nx).to receive(:vm).and_return(vm).at_least(:once)
+      expect(vm).to receive(:firewall_rules).and_return([
+        instance_double(FirewallRule, cidr: NetAddr::IPv4Net.parse("0.0.0.0/0"), port_range: Sequel.pg_range(80..10000), protocol: "tcp"),
+      ])
+      ec2_client.stub_responses(:describe_security_groups, security_groups: [ip_permissions: []])
+      expect(ec2_client).to receive(:authorize_security_group_ingress).and_raise(Aws::EC2::Errors::InvalidPermissionDuplicate.new("Duplicate", "Duplicate"))
 
       expect { nx.update_firewall_rules }.to hop("remove_aws_old_rules")
     end
@@ -148,55 +125,41 @@ RSpec.describe Prog::Vnet::Aws::UpdateFirewallRules do
       allow(vm).to receive(:location).and_return(loc)
     end
 
-    it "removes old rules" do
+    it "removes all old rules in a single call" do
       expect(nx).to receive(:vm).and_return(vm).at_least(:once)
       expect(vm).to receive(:firewall_rules).and_return([
-        instance_double(FirewallRule, ip6?: false, cidr: NetAddr::IPv4Net.parse("0.0.0.0/0"), port_range: Sequel.pg_range(80..10000), protocol: "tcp"),
-        instance_double(FirewallRule, ip6?: false, cidr: NetAddr::IPv4Net.parse("1.1.1.1/32"), port_range: Sequel.pg_range(22..23), protocol: "tcp"),
-        instance_double(FirewallRule, ip6?: true, cidr: NetAddr::IPv6Net.parse("fd00::1/128"), port_range: Sequel.pg_range(80..10000), protocol: "tcp"),
+        instance_double(FirewallRule, cidr: NetAddr::IPv4Net.parse("0.0.0.0/0"), port_range: Sequel.pg_range(80..10000), protocol: "tcp"),
+        instance_double(FirewallRule, cidr: NetAddr::IPv4Net.parse("1.1.1.1/32"), port_range: Sequel.pg_range(22..23), protocol: "tcp"),
+        instance_double(FirewallRule, cidr: NetAddr::IPv6Net.parse("fd00::1/128"), port_range: Sequel.pg_range(80..10000), protocol: "tcp"),
       ])
       expect(vm.private_subnets.first).to receive(:private_subnet_aws_resource).and_return(instance_double(PrivateSubnetAwsResource, security_group_id: "sg-1234567890")).at_least(:once)
       ec2_client.stub_responses(:describe_security_groups, security_groups: [ip_permissions: [
-        {
-          ip_protocol: "tcp",
-          from_port: 0,
-          to_port: 100,
-          ip_ranges: [],
-          ipv_6_ranges: [{cidr_ipv_6: "fd00::1/128"}],
-        },
-        {
-          ip_protocol: "udp",
-          from_port: 0,
-          to_port: 100,
-          ip_ranges: [{cidr_ip: "0.0.0.0/0"}],
-          ipv_6_ranges: [{cidr_ipv_6: "fd00::1/128"}],
-        },
-        {
-          ip_protocol: "tcp",
-          from_port: 0,
-          to_port: 100,
-          ip_ranges: [{cidr_ip: "10.10.10.10/32"}],
-          ipv_6_ranges: [],
-        },
-        {
-          ip_protocol: "tcp",
-          from_port: 80,
-          to_port: 9999,
-          ip_ranges: [],
-          ipv_6_ranges: [{cidr_ipv_6: "fd00::1/128"}],
-        },
-        {
-          ip_protocol: "tcp",
-          from_port: 80,
-          to_port: 9999,
-          ip_ranges: [{cidr_ip: "0.0.0.0/0"}],
-          ipv_6_ranges: [],
-        },
+        {ip_protocol: "tcp", from_port: 0, to_port: 100, ip_ranges: [], ipv_6_ranges: [{cidr_ipv_6: "fd00::1/128"}]},
+        {ip_protocol: "udp", from_port: 0, to_port: 100, ip_ranges: [{cidr_ip: "0.0.0.0/0"}], ipv_6_ranges: [{cidr_ipv_6: "fd00::1/128"}]},
+        {ip_protocol: "tcp", from_port: 0, to_port: 100, ip_ranges: [{cidr_ip: "10.10.10.10/32"}], ipv_6_ranges: []},
+        {ip_protocol: "tcp", from_port: 80, to_port: 9999, ip_ranges: [], ipv_6_ranges: [{cidr_ipv_6: "fd00::1/128"}]},
+        {ip_protocol: "tcp", from_port: 80, to_port: 9999, ip_ranges: [{cidr_ip: "0.0.0.0/0"}], ipv_6_ranges: []},
       ]])
 
-      expect(ec2_client).to receive(:revoke_security_group_ingress).with({group_id: "sg-1234567890", ip_permissions: [{from_port: 0, ip_protocol: "udp", ip_ranges: [Aws::EC2::Types::IpRange.new(cidr_ip: "0.0.0.0/0")], ipv_6_ranges: [Aws::EC2::Types::Ipv6Range.new(cidr_ipv_6: "fd00::1/128")], to_port: 100}]})
-      expect(ec2_client).to receive(:revoke_security_group_ingress).with({group_id: "sg-1234567890", ip_permissions: [{from_port: 0, ip_protocol: "tcp", ipv_6_ranges: [Aws::EC2::Types::Ipv6Range.new(cidr_ipv_6: "fd00::1/128")], to_port: 100}]})
-      expect(ec2_client).to receive(:revoke_security_group_ingress).with({group_id: "sg-1234567890", ip_permissions: [{from_port: 0, ip_protocol: "tcp", ip_ranges: [Aws::EC2::Types::IpRange.new(cidr_ip: "10.10.10.10/32")], to_port: 100}]}).and_raise(Aws::EC2::Errors::InvalidPermissionNotFound.new("Duplicate", "Duplicate"))
+      expect(ec2_client).to receive(:revoke_security_group_ingress).with({
+        group_id: "sg-1234567890",
+        ip_permissions: [
+          {ip_protocol: "tcp", from_port: 0, to_port: 100, ip_ranges: [{cidr_ip: "10.10.10.10/32"}], ipv_6_ranges: [{cidr_ipv_6: "fd00::1/128"}]},
+          {ip_protocol: "udp", from_port: 0, to_port: 100, ip_ranges: [{cidr_ip: "0.0.0.0/0"}], ipv_6_ranges: [{cidr_ipv_6: "fd00::1/128"}]},
+        ],
+      })
+
+      expect { nx.remove_aws_old_rules }.to exit({"msg" => "firewall rule is added"})
+    end
+
+    it "swallows InvalidPermissionNotFound and exits" do
+      expect(nx).to receive(:vm).and_return(vm).at_least(:once)
+      expect(vm).to receive(:firewall_rules).and_return([])
+      expect(vm.private_subnets.first).to receive(:private_subnet_aws_resource).and_return(instance_double(PrivateSubnetAwsResource, security_group_id: "sg-1234567890")).at_least(:once)
+      ec2_client.stub_responses(:describe_security_groups, security_groups: [ip_permissions: [
+        {ip_protocol: "tcp", from_port: 22, to_port: 22, ip_ranges: [{cidr_ip: "1.1.1.1/32"}], ipv_6_ranges: []},
+      ]])
+      expect(ec2_client).to receive(:revoke_security_group_ingress).and_raise(Aws::EC2::Errors::InvalidPermissionNotFound.new("NotFound", "NotFound"))
 
       expect { nx.remove_aws_old_rules }.to exit({"msg" => "firewall rule is added"})
     end
@@ -204,9 +167,9 @@ RSpec.describe Prog::Vnet::Aws::UpdateFirewallRules do
     it "doesn't make a call if there are no old rules" do
       expect(nx).to receive(:vm).and_return(vm).at_least(:once)
       expect(vm).to receive(:firewall_rules).and_return([
-        instance_double(FirewallRule, ip6?: false, cidr: NetAddr::IPv4Net.parse("0.0.0.0/0"), port_range: Sequel.pg_range(80..10000), protocol: "tcp"),
-        instance_double(FirewallRule, ip6?: false, cidr: NetAddr::IPv4Net.parse("1.1.1.1/32"), port_range: Sequel.pg_range(22..23), protocol: "tcp"),
-        instance_double(FirewallRule, ip6?: true, cidr: NetAddr::IPv6Net.parse("fd00::1/128"), port_range: Sequel.pg_range(80..10000), protocol: "tcp"),
+        instance_double(FirewallRule, cidr: NetAddr::IPv4Net.parse("0.0.0.0/0"), port_range: Sequel.pg_range(80..10000), protocol: "tcp"),
+        instance_double(FirewallRule, cidr: NetAddr::IPv4Net.parse("1.1.1.1/32"), port_range: Sequel.pg_range(22..23), protocol: "tcp"),
+        instance_double(FirewallRule, cidr: NetAddr::IPv6Net.parse("fd00::1/128"), port_range: Sequel.pg_range(80..10000), protocol: "tcp"),
       ])
       expect(vm.private_subnets.first).to receive(:private_subnet_aws_resource).and_return(instance_double(PrivateSubnetAwsResource, security_group_id: "sg-1234567890")).at_least(:once)
       ec2_client.stub_responses(:describe_security_groups, security_groups: [ip_permissions: [
