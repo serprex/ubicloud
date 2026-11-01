@@ -39,8 +39,11 @@ Sequel.migration do
   end
 
   down do
+    # Skip archiving, archived_record may lack partition for current month
+    run "ALTER TABLE applied_action_tag DISABLE TRIGGER archived_record_insert"
     run "DELETE FROM applied_action_tag WHERE tag_id = 'ffffffff-ff00-834a-87ff-ff8281028210';"
     run "DELETE FROM applied_action_tag WHERE action_id = 'ffffffff-ff00-834a-87ff-ff8281028210';"
+    run "ALTER TABLE applied_action_tag ENABLE TRIGGER archived_record_insert"
     run "DELETE FROM action_type WHERE name LIKE 'MachineImage%';"
     run "DELETE FROM action_tag WHERE name LIKE 'MachineImage%' AND project_id IS NULL;"
   end
