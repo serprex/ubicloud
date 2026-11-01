@@ -10,7 +10,10 @@ Sequel.migration do
   end
 
   down do
+    # Skip archiving, archived_record may lack partition for current month
+    run "ALTER TABLE applied_action_tag DISABLE TRIGGER archived_record_insert"
     from(:applied_action_tag).where(action_id: "ffffffff-ff00-835a-802d-202b6d0e8200").delete
+    run "ALTER TABLE applied_action_tag ENABLE TRIGGER archived_record_insert"
     from(:action_type).where(id: "ffffffff-ff00-835a-802d-202b6d0e8200").delete
   end
 end
